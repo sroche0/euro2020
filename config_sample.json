@@ -1,0 +1,18 @@
+{
+    "x-rapidapi-key": "YOUR_API_KEY",
+    "x-rapidapi-host": "api-football-v1.p.rapidapi.com",
+    "pts": {
+        "Qualifying": 0,
+        "Group": 3,
+        "8th Finals": 3,
+        "Quarter-finals": 6,
+        "Semi-finals": 9,
+        "Finals": 12
+    },
+    "players":{
+        "Moe": ["Italy", "Ukraine", "Netherlands", "FYR Macedonia","Finland", "Sweden"],
+        "Larry": ["Wales", "Belgium", "Croatia", "Switzerland", "Austria", "Hungary"],
+        "Curly": ["Turkey", "Czech Republic", "Slovakia", "Spain", "England", "Portugal"]
+    }
+
+}

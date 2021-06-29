@@ -8,14 +8,16 @@ import time, datetime
 from pprint import pprint
 import flask
 from flask import request, jsonify
+from bracket import Bracket
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
 
 class Person:
-    def __init__(self, name):
+    def __init__(self, name, slack_id):
         self.name = name
+        self.slack_id = slack_id
         self.teams = []
         self.pts = {
             'Group': 0, 
@@ -41,7 +43,7 @@ class Person:
     def calc_record(self):
         wins, losses, draws = 0, 0, 0
         for team in self.teams:
-            for rnd, results in team.fixtures.items():
+            for rnd, results in team.record.items():
                 if 'Qualifying' in rnd:
                     continue
                 wins += results['w']
@@ -64,26 +66,27 @@ class Tournament:
             "x-rapidapi-host": self.config['x-rapidapi-host'],
             }
         self.api_base_url = 'https://api-football-v1.p.rapidapi.com/v3'
-        self.team_data = {}
-        self.fixtures = {}
+        self.fixtures = self.refresh_fixture_data()
 
         self.teams = []
-        
         self.people = []
-        for name, teams in self.config['players'].items():
-            player = Person(name)
-            for country in teams:
-                team = (Team(country, name))
+
+        for name, data in self.config['players'].items():
+            player = Person(name, data['slack_id'])
+            for country in data['teams']:
+                team = (Team(country, name, data['slack_id']))
                 self.teams.append(team)
                 player.teams.append(team)
 
             self.people.append(player)
             player.update()
-
-
-
-    def print_group_table(self, group):
-        pass
+        
+        self.bracket = Bracket()
+        self.bracket.g_1['teams'] = ['Belgium', 'Portugal', 'Italy', 'Austria']
+        self.bracket.g_2['teams'] = ['France', 'Switzerland', 'Spain', 'Croatia']
+        self.bracket.g_3['teams'] = ['Sweden', 'Ukraine', 'England', 'Germany']
+        self.bracket.g_4['teams'] = ['France', 'Czech Republic', 'Wales', 'Denmark']
+        self.cache_team_data()
 
     def print_pool_scoreboard(self):
         format_str = '{:5} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}'
@@ -105,11 +108,6 @@ class Tournament:
         
         scoreboard.append('```')
         return '\n'.join(scoreboard)
-        pass
-
-    def refresh_cache(self):
-        self.fixtures = self.fetch_fixture_data()
-        self.team_data = self.fetch_teams_data()
 
     def is_stale(self, file_name):
         try:
@@ -119,12 +117,12 @@ class Tournament:
 
         now = int(time.time())
 
-        if now - mtime > 3600:
+        if now - mtime > 900:
             return True
         else:
             return False
 
-    def fetch_fixture_data(self, force=False):
+    def refresh_fixture_data(self, force=False):
         if self.is_stale('fixtures.json'):
             url = "{}/fixtures".format(self.api_base_url)
 
@@ -141,23 +139,19 @@ class Tournament:
         with open('fixtures.json') as f:
             return json.load(f)
 
-    def fetch_teams_data(self):
-        # TODO only fetch this if teams.json doesnt exist. build a custom cache on first run and save that as teams.json
-        if self.is_stale('teams.json'):
-            url = "{}/teams".format(self.api_base_url)
+    def cache_team_data(self):
+        team_data = {}
+        for team in self.teams:
+            team_data[team.name] = {
+                'id': team.id,
+                'owner': team.owner,
+                'name': team.name
+            }
 
-            params = {"league": "4", "season": '2020'}
-            r = requests.get(url, headers=self.headers, params=params)
+        with open('teams.json', 'w') as f:
+            json.dump(team_data, f, separators=(',', ':'), indent=2 )
 
-            resp = r.json()
-
-            with open('teams.json', 'w') as f:
-                f.write(json.dumps(resp, separators=(',', ':'), indent=2))
-        
-        with open('teams.json') as f:
-            return json.load(f)
-
-    def print_group_tables(self):
+    def print_group_tables(self, user):
         resp = ['```']
         format_str = '{:15} {:>4} {:>4} {:>4} {:>4}'
         headers = format_str.format('', 'W', 'L', 'D', 'PTS')
@@ -168,28 +162,55 @@ class Tournament:
 
             teams = sorted(teams, key=lambda x: (x.pts['Group']), reverse=True)
             for t in teams:
-                group_table.append(format_str.format(t.name, t.fixtures['Group']['w'], t.fixtures['Group']['l'], t.fixtures['Group']['d'], t.pts['Group']))
+                if user == t.owner_id:
+                    name = '{} *'.format(t.name)
+                else:
+                    name = t.name
+                group_table.append(format_str.format(name, t.fixtures['Group']['w'], t.fixtures['Group']['l'], t.fixtures['Group']['d'], t.pts['Group']))
             
             group_table.append('')
             group_table.append('')
 
             resp.append('\n'.join(group_table))
 
-        
+        resp.append('* Teams owned by you')
         resp.append('```')
+        return '\n'.join(resp)
+
+    def print_remaining_teams(self):
+        resp = ['```']
+        team_format_str = '  {:18} {:7} {:4}'
+        for person in self.people:
+            resp.append('{}:'.format( person.name))
+            for team in person.teams:
+                if team.eliminated:
+                    name = '*{}*'.format(team.name)
+                else:
+                    name = team.name
+                resp.append(team_format_str.format(name, team.recordstr, team.pts['Total']))
+            
+            resp.append('')
+
+        resp.append('* Eliminated teams')
+        resp.append('```')
+        
         return '\n'.join(resp)
 
 
 class Team:
-    def __init__(self, country, owner):
+    def __init__(self, country, owner, owner_id):
         with open('config.json') as f:
             self.config = json.load(f)
         self.name = country
-        self.id = ''        
+        self.id = ''
+        self.owner_id = owner_id        
         self.group = ''
         self.owner = owner
-        self.fixtures = self.get_fixture_results()
+        self.fixtures = []
+        self.record = self.get_fixture_results()
+        self.recordstr =  self.calc_record()
         self.pts = self.calc_pts()
+        self.eliminated = self.is_eliminated()
 
     def get_fixture_results(self):
         results = {}
@@ -197,9 +218,6 @@ class Team:
             fixtures = json.load(f)
 
         for game in fixtures['response']:
-            if game['fixture']['status']['short'] != 'FT':
-                continue
-
             rnd = game['league']['round']
             group = ''
 
@@ -214,8 +232,16 @@ class Team:
 
             for side, team in game['teams'].items():
                 if team['name'] == self.name:
+                    self.fixtures.append(game)
                     if not self.group and group:
                         self.group = group
+
+                    if not self.id:
+                        self.id = team['id']
+
+                    if game['fixture']['status']['long'] != 'Match Finished':
+                        continue
+
                     if team['winner'] is True:
                         results[rnd]['w'] += 1
                     elif team['winner'] == 'null':
@@ -228,7 +254,7 @@ class Team:
 
     def calc_pts(self):
         pts = {'Total': 0}
-        for rnd, results in self.fixtures.items():
+        for rnd, results in self.record.items():
             if 'Qualifying' in rnd:
                     continue
 
@@ -245,35 +271,52 @@ class Team:
     def calc_record(self):
         wins, losses, draws = 0, 0, 0
 
-        for rnd, results in self.fixtures.items():
+        for rnd, results in self.record.items():
             if 'Qualifying' in rnd:
                 continue
             wins += results['w']
             losses += results['l']
             draws += results['d']
 
-        self.record = '{}-{}-{}'.format(wins, losses, draws)
+        return'{}-{}-{}'.format(wins, losses, draws)
 
-    def parse_team_data(self):
-        with open('teams.json') as f:
-            teams = json.load(f)
+    def print_team_info(self):
+        resp = ['```', self.name, '  Owner: {}'.format(self.owner)]
+        if self.eliminated:
+            resp.append('  {} *Eliminated'.format(self.recordstr))
+        else:
+            resp.append('  {}'.format(self.recordstr))
+
+        resp.append('```')
+        return '\n'.join(resp)
+
+    def is_eliminated(self):
+        last_game = self.fixtures[-1]
+        if last_game['fixture']['status']['long'] != 'Match Finished':
+            return False
         
-        for t in teams['response']:
-            if t['team']['name'] != self.name:
-                continue
-            self.id = t['team']['id']
+        for side, team in last_game['teams'].items():
+            if team['name'] == self.name:
+                 if team['winner'] is True:
+                    return False
+        
+        return True
 
 
-def help():
-    commands = [
-        '```',
+def help(err=False):
+    commands = ['```']
+    if err:
+        commands.append('Unknown command: {}'.format(err))
+        commands.append('')
+        
+    commands.extend([
         'Available Commands:',
-        '',
-        'scores - print the pool scores',
-        'group  - print the group tables',
-        'help   - print this help text',
+        '  scores - show the pool scoreboard',
+        '  group  - print the group tables',
+        '  teams  - show table of teams sorted by player',
+        '  help   - show available commands and usage',
         '```'
-    ]
+    ])
 
     return '\n'.join(commands)
 
@@ -283,7 +326,6 @@ if __name__ == '__main__':
     @app.route('/', methods=['POST'])
     def main():
         euro = Tournament()
-        euro.refresh_cache()
         if request.content_length > 2000:
             return 'NO'
             
@@ -292,18 +334,34 @@ if __name__ == '__main__':
         params = {}
         for keypair in payload:
             k = keypair.split('=')
-            params[k[0]] = k[1]
+            params[k[0].lower()] = k[1].lower()
         
+        pprint(params)
         if params['text'] == 'scores':
             return euro.print_pool_scoreboard()
 
         elif params['text'] == 'group':
-            return euro.print_group_tables()
+            return euro.print_group_tables(params['user_name'])
+
+        # elif 'team' in params['text']:
+        #     team_name = params['text'].split('+')[1]
+        #     team = [x for x in euro.teams if team_name in x.name.lower()]
+        #     if not team:
+        #         return 'Unknown team name: {}'.format(team_name)
+        #     else:
+        #         return team[0].print_team_info()
+
+        elif params['text'] == 'teams':
+            return euro.print_remaining_teams()
+
+        elif params['text'] == 'bracket':
+            return euro.bracket.print_bracket()
+
         elif params['text'] == 'help':
             return help()
 
         else:
-            return 'Unknown command: {}'.format(params['text'])
+            return help(params['text'])
             
 
     app.run()

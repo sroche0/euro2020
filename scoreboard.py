@@ -24,7 +24,7 @@ class Person:
             '8th Finals': 0, 
             'Quarter-finals': 0, 
             'Semi-finals': 0, 
-            'Finals': 0,
+            'Final': 0,
             'Total': 0
         }
         self.record = '0-0-0'
@@ -91,7 +91,7 @@ class Tournament:
     def print_pool_scoreboard(self):
         format_str = '{:5} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}'
         scoreboard = ['```', str(datetime.datetime.today())]
-        scoreboard.append(format_str.format('', 'Record', 'Group', 'Rd 16', 'Quarters', 'Semis', 'Finals', 'Total'))
+        scoreboard.append(format_str.format('', 'Record', 'Group', 'Rd 16', 'Quarters', 'Semis', 'Final', 'Total'))
         scoreboard.append('-' * 76)
         people = sorted(self.people, key=lambda x: (x.total_pts), reverse=True)
         for p in people:
@@ -102,7 +102,7 @@ class Tournament:
                 p.pts['8th Finals'], 
                 p.pts['Quarter-finals'], 
                 p.pts['Semi-finals'], 
-                p.pts['Finals'], 
+                p.pts['Final'], 
                 p.pts['Total']
                 ))
         
@@ -255,6 +255,7 @@ class Team:
     def calc_pts(self):
         pts = {'Total': 0}
         for rnd, results in self.record.items():
+            rnd = str(rnd)
             if 'Qualifying' in rnd:
                     continue
 

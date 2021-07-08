@@ -10,9 +10,9 @@
         "Finals": 12
     },
     "players":{
-        "Moe": ["Italy", "Ukraine", "Netherlands", "FYR Macedonia","Finland", "Sweden"],
-        "Larry": ["Wales", "Belgium", "Croatia", "Switzerland", "Austria", "Hungary"],
-        "Curly": ["Turkey", "Czech Republic", "Slovakia", "Spain", "England", "Portugal"]
+        "Moe": {"slack_id": "moe", "teams": ["Italy", "Ukraine", "Netherlands", "FYR Macedonia","Finland", "Sweden"]},
+        "Larry": {"slack_id": "larry", "teams": ["Wales", "Belgium", "Croatia", "Switzerland", "Austria", "Hungary"]},
+        "Curly": {"slack_id": "curly", "teams": ["Turkey", "Czech Republic", "Slovakia", "Spain", "England", "Portugal"]}
     }
 
 }

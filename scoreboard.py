@@ -85,7 +85,7 @@ class Tournament:
         self.bracket.g_1['teams'] = ['Belgium', 'Portugal', 'Italy', 'Austria']
         self.bracket.g_2['teams'] = ['France', 'Switzerland', 'Spain', 'Croatia']
         self.bracket.g_3['teams'] = ['Sweden', 'Ukraine', 'England', 'Germany']
-        self.bracket.g_4['teams'] = ['France', 'Czech Republic', 'Wales', 'Denmark']
+        self.bracket.g_4['teams'] = ['Netherlands', 'Czech Republic', 'Wales', 'Denmark']
         self.cache_team_data()
 
     def print_pool_scoreboard(self):
@@ -311,10 +311,11 @@ def help(err=False):
         
     commands.extend([
         'Available Commands:',
-        '  scores - show the pool scoreboard',
-        '  group  - print the group tables',
-        '  teams  - show table of teams sorted by player',
-        '  help   - show available commands and usage',
+        '  scores  - show the pool scoreboard',
+        '  group   - print the group tables',
+        '  teams   - show table of teams sorted by player',
+        '  bracket - print the knockout bracket',
+        '  help    - show available commands and usage',
         '```'
     ])
 

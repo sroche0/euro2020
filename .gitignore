@@ -1,6 +1,7 @@
-config.json
-teams.json
-fixtures.json
+*config.json
+*teams.json
+*fixtures.json
+*scores.json
 config_sample.json
 .vscode/*
 *.pyc

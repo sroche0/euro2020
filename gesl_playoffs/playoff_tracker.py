@@ -241,14 +241,12 @@ class League:
                     "abbrev" : "DDFCNC",
                     "bbidAvailableBalance" : "52.00",
                     "country" : "US",
-                    "email" : "jeffdeluca0@gmail.com",
                     "future_draft_picks" : "FP_0001_2021_1,FP_0001_2021_2,FP_0001_2021_4,FP_0001_2021_6,FP_0001_2021_7,FP_0001_2021_8,FP_0001_2021_9,FP_0001_2021_10,FP_0001_2021_11,FP_0001_2021_12,FP_0001_2021_13,FP_0001_2021_14,FP_0001_2021_15,FP_0001_2022_1,FP_0001_2022_2,FP_0001_2022_3,FP_0001_2022_4,FP_0001_2022_5,FP_0001_2022_6,FP_0001_2022_7,FP_0001_2022_8,FP_0001_2022_9,FP_0001_2022_10,FP_0001_2022_11,FP_0001_2022_12,FP_0001_2022_13,FP_0001_2022_14,FP_0001_2022_15,",
                     "icon" : "https://www73.myfantasyleague.com/fflnetdynamic2021/60050_franchise_icon0001.jpg",
                     "id" : "0001",
                     "lastVisit" : "1640052975",
                     "logo" : "https://www73.myfantasyleague.com/fflnetdynamic2021/60050_franchise_logo0001.jpg",
                     "name" : "Din Din with Firecrotch and Normcore",
-                    "owner_name" : "Jeff DeLuca",
                     "waiverSortOrder" : "10"
                     },
 

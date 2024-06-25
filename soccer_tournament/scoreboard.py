@@ -9,6 +9,7 @@ from pprint import pprint
 import flask
 from flask import request, jsonify
 from bracket import Bracket
+import sys
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
@@ -21,7 +22,7 @@ class Person:
         self.teams = []
         self.pts = {
             'Group': 0, 
-            '8th Finals': 0, 
+            'Round of 16': 0,
             'Quarter-finals': 0, 
             'Semi-finals': 0, 
             'Final': 0,
@@ -61,11 +62,11 @@ class Tournament:
     def __init__(self):
         with open('config.json') as f:
             self.config = json.load(f)
-        self.headers = {    
+        self.headers = {
             "x-rapidapi-key": self.config['x-rapidapi-key'],
             "x-rapidapi-host": self.config['x-rapidapi-host'],
             }
-        self.api_base_url = 'https://api-football-v1.p.rapidapi.com/v3'
+        self.api_base_url = 'https://v3.football.api-sports.io/'
         self.fixtures = self.refresh_fixture_data()
 
         self.teams = []
@@ -73,6 +74,7 @@ class Tournament:
 
         for name, data in self.config['players'].items():
             player = Person(name, data['slack_id'])
+
             for country in data['teams']:
                 team = (Team(country, name, data['slack_id']))
                 self.teams.append(team)
@@ -82,16 +84,16 @@ class Tournament:
             player.update()
         
         self.bracket = Bracket()
-        self.bracket.g_1['teams'] = ['Belgium', 'Portugal', 'Italy', 'Austria']
-        self.bracket.g_2['teams'] = ['France', 'Switzerland', 'Spain', 'Croatia']
-        self.bracket.g_3['teams'] = ['Sweden', 'Ukraine', 'England', 'Germany']
-        self.bracket.g_4['teams'] = ['Netherlands', 'Czech Republic', 'Wales', 'Denmark']
+        self.bracket.g_1['teams'] = ['Germany', 'Switzerland', 'Hungary', 'Scotland']
+        self.bracket.g_2['teams'] = ['Spain', 'Italy', 'Croatia', 'Albania']
+        self.bracket.g_3['teams'] = ['England', 'Denmark', 'Slovenia', 'Serbia']
+        self.bracket.g_4['teams'] = ['Netherlands', 'France', 'Austria', 'Poland']
         self.cache_team_data()
 
     def print_pool_scoreboard(self):
         format_str = '{:5} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}'
         scoreboard = ['```', str(datetime.datetime.today())]
-        scoreboard.append(format_str.format('', 'Record', 'Group', 'Rd 16', 'Quarters', 'Semis', 'Final', 'Total'))
+        scoreboard.append(format_str.format('', 'W-L-D', 'Group', 'Rd 16', 'Quarters', 'Semis', 'Final', 'Total'))
         scoreboard.append('-' * 76)
         people = sorted(self.people, key=lambda x: (x.total_pts), reverse=True)
         for p in people:
@@ -99,7 +101,7 @@ class Tournament:
                 p.name, 
                 p.record, 
                 p.pts['Group'], 
-                p.pts['8th Finals'], 
+                p.pts['Round of 16'],
                 p.pts['Quarter-finals'], 
                 p.pts['Semi-finals'], 
                 p.pts['Final'], 
@@ -126,7 +128,7 @@ class Tournament:
         if self.is_stale('fixtures.json'):
             url = "{}/fixtures".format(self.api_base_url)
 
-            params = {"league": "4", "season": '2020'}
+            params = {"league": "4", "season": '2024'}
             r = requests.get(url, headers=self.headers, params=params)
 
             resp = r.text
@@ -208,9 +210,10 @@ class Team:
         self.owner = owner
         self.fixtures = []
         self.record = self.get_fixture_results()
-        self.recordstr =  self.calc_record()
+        self.recordstr = self.calc_record()
         self.pts = self.calc_pts()
-        self.eliminated = self.is_eliminated()
+        # self.eliminated = self.is_eliminated()
+
 
     def get_fixture_results(self):
         results = {}
@@ -248,7 +251,6 @@ class Team:
                         results[rnd]['d'] += 1
                     else:
                         results[rnd]['l'] += 1
-
 
         return results
 
@@ -322,49 +324,57 @@ def help(err=False):
 
     return '\n'.join(commands)
 
+@app.route('/', methods=['POST', 'GET'])
+def main():
+    euro = Tournament()
+    return euro.print_pool_scoreboard()
+    # if request.content_length > 2000:
+    #     return 'NO'
+
+    # payload = request.get_data(as_text=True)
+    # payload = payload.split('&')
+
+    # params = {}
+    # for keypair in payload:
+    #     k = keypair.split('=')
+    #     params[k[0].lower()] = k[1].lower()
+    #
+    # pprint(params)
+    # if params['text'] == 'scores':
+    #     return euro.print_pool_scoreboard()
+    #
+    # elif params['text'] == 'group':
+    #     return euro.print_group_tables(params['user_name'])
+
+    #shawn's work
+    # elif 'team' in params['text']:
+    #     team_name = params['text'].split('+')[1]
+    #     team = [x for x in euro.teams if team_name in x.name.lower()]
+    #     if not team:
+    #         return 'Unknown team name: {}'.format(team_name)
+    #     else:
+    #         return team[0].print_team_info()
+
+    # elif params['text'] == 'teams':
+    #     return euro.print_remaining_teams()
+    #
+    # elif params['text'] == 'bracket':
+    #     return euro.bracket.print_bracket()
+    #
+    # elif params['text'] == 'help':
+    #     return help()
+    #
+    # else:
+    #     return help(params['text'])
+
 
 if __name__ == '__main__':
-    
-    @app.route('/', methods=['POST'])
-    def main():
-        euro = Tournament()
-        if request.content_length > 2000:
-            return 'NO'
-            
-        payload = request.get_data()
-        payload = payload.split('&')
-        params = {}
-        for keypair in payload:
-            k = keypair.split('=')
-            params[k[0].lower()] = k[1].lower()
-        
-        pprint(params)
-        if params['text'] == 'scores':
-            return euro.print_pool_scoreboard()
-
-        elif params['text'] == 'group':
-            return euro.print_group_tables(params['user_name'])
-
-        # elif 'team' in params['text']:
-        #     team_name = params['text'].split('+')[1]
-        #     team = [x for x in euro.teams if team_name in x.name.lower()]
-        #     if not team:
-        #         return 'Unknown team name: {}'.format(team_name)
-        #     else:
-        #         return team[0].print_team_info()
-
-        elif params['text'] == 'teams':
-            return euro.print_remaining_teams()
-
-        elif params['text'] == 'bracket':
-            return euro.bracket.print_bracket()
-
-        elif params['text'] == 'help':
-            return help()
-
-        else:
-            return help(params['text'])
-            
-
-    app.run()
+    # app.run(debug=True)
+    euro = Tournament()
+    print(euro.print_pool_scoreboard())
+    # for p in euro.people:
+    #     print(p.name, p.pts, p.record)
+    #     for t in p.teams:
+    #         print(t.name, t.record['Group'])
+    #         # print(t.pts)
 
